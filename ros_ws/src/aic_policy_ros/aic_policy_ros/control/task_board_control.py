@@ -128,8 +128,6 @@ class TaskBoardControl:
                 policy=self._policy,
                 move_robot=self._move_robot,
                 sim_cycle_sec=self._cartesian._sim_cycle_sec,
-                tcp_episode_start_pos_m=self._tcp_episode_start_pos_m,
-                tcp_episode_start_quat_xyzw=self._tcp_episode_start_quat_xyzw,
                 task_board_orientation=task_board_orientation,
                 board_cx_m=board_cx_m,
                 board_cy_m=board_cy_m,

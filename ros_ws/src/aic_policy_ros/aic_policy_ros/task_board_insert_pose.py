@@ -99,6 +99,30 @@ def manifest_row_for_task(task: Any, episode_id: int, rows: list[dict[str, Any]]
     return None
 
 
+def initial_tcp_pose_from_manifest_row(
+    row: dict[str, Any] | None,
+) -> tuple[tuple[float, float, float], tuple[float, float, float, float]] | None:
+    """Return ``(xyz_m, quat_xyzw)`` from ``row['initial_tcp_pose']`` if present and well-formed."""
+
+    if row is None:
+        return None
+    block = row.get("initial_tcp_pose")
+    if not isinstance(block, dict):
+        return None
+    xyz = block.get("xyz_m")
+    quat = block.get("quat_xyzw")
+    if not isinstance(xyz, (list, tuple)) or len(xyz) != 3:
+        return None
+    if not isinstance(quat, (list, tuple)) or len(quat) != 4:
+        return None
+    try:
+        pos = (float(xyz[0]), float(xyz[1]), float(xyz[2]))
+        q = (float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3]))
+    except (TypeError, ValueError):
+        return None
+    return pos, q
+
+
 def _reference_board_pose_dict(recorded_task_board_pose: dict[str, Any] | None) -> dict[str, float]:
     if recorded_task_board_pose and all(
         k in recorded_task_board_pose for k in ("x", "y", "z", "roll", "pitch", "yaw")

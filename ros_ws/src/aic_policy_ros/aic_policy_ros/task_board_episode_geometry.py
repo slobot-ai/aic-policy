@@ -44,11 +44,13 @@ def t_base_from_board_from_trial_yaml(trial_yaml: Path | str) -> NDArray[np.floa
 def t_cam_from_board_by_camera_from_trial_yaml(trial_yaml: Path | str) -> dict[str, NDArray[np.float64]]:
     """Per-camera ``T_cam_from_board`` (4×4) from ``trial_N.yaml`` and fixed wrist extrinsics."""
 
-    from vision.transform.rectangle_forward_projection import T_CAM_FROM_BASE_BY_CAMERA
+    from aic_policy_ros.wrist_extrinsics_testing_matrices import T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION
 
     T_bb = t_base_from_board_from_trial_yaml(trial_yaml)
     cams: tuple[str, ...] = ("left_camera", "center_camera", "right_camera")
-    return {cam: np.asarray(T_CAM_FROM_BASE_BY_CAMERA[cam], dtype=np.float64) @ T_bb for cam in cams}
+    return {
+        cam: np.asarray(T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION[cam], dtype=np.float64) @ T_bb for cam in cams
+    }
 
 
 def _default_trial_yaml_for_episode(episode_id: int) -> Path:
@@ -94,26 +96,26 @@ def z_face_in_base() -> float:
 
 
 def t_cam_from_base_by_camera_dict(
-    observation_phase: Literal["first", "second"],
+    observation_phase: Literal["first", "second", "third"],
 ) -> dict[str, NDArray[np.float64]]:
-    """Per-camera ``T_cam_from_base`` matching ``vision`` tests (first vs second wrist pose).
+    """Per-camera ``T_cam_from_base`` for **offline tests / tooling** (not used by live ``TaskBoardVision``).
 
-    :class:`vision.rectangle_vision.RectangleVision` on ``PURPLE_INTRINSICS_LOGO`` / second BGR is
-    exercised with :data:`vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION`
-    in ``ai-industry-challenge`` ``tests/vision/test_rectangle_vision.py``; task-board / first BGR
-    uses :data:`vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA`.
+    Live policy resolves extrinsics from ``tf2_ros.Buffer`` only. These dicts mirror the vendored
+    episode‑0 wrist matrices in :mod:`aic_policy_ros.wrist_extrinsics_testing_matrices`.
     """
 
-    from vision.transform.rectangle_forward_projection import (
-        T_CAM_FROM_BASE_BY_CAMERA,
+    from aic_policy_ros.wrist_extrinsics_testing_matrices import (
+        T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION,
         T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION,
+        T_CAM_FROM_BASE_BY_CAMERA_THIRD_OBSERVATION,
     )
 
-    src = (
-        T_CAM_FROM_BASE_BY_CAMERA
-        if observation_phase == "first"
-        else T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION
-    )
+    if observation_phase == "first":
+        src = T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION
+    elif observation_phase == "second":
+        src = T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION
+    else:
+        src = T_CAM_FROM_BASE_BY_CAMERA_THIRD_OBSERVATION
     return {cam: np.asarray(src[cam], dtype=np.float64) for cam in ("left_camera", "center_camera", "right_camera")}
 
 

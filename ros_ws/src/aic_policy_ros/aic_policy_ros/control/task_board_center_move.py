@@ -10,9 +10,10 @@ import math
 from dataclasses import dataclass
 from typing import Any, Sequence
 
+import numpy as np
 from geometry_msgs.msg import Point, Pose, Quaternion
 from rclpy.time import Time
-from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation, Slerp
 
 from aic_model.policy import MoveRobotCallback, Policy
 
@@ -110,6 +111,44 @@ def _gripper_tcp_pose_base_link(
     qw = float(r.w)
     yaw = float(Rotation.from_quat((qx, qy, qz, qw)).as_euler("xyz")[2])
     return (float(t.x), float(t.y), float(t.z), qx, qy, qz, qw, yaw)
+
+
+def _blend_pose_toward_target(
+    cur_xyz: tuple[float, float, float],
+    cur_quat_xyzw: tuple[float, float, float, float],
+    target: Pose,
+    alpha: float,
+) -> Pose:
+    """Linear blend in position and SLERP in orientation (``alpha`` in ``[0, 1]``).
+
+    Same convention as ``ground_truth/ros/GroundTruth.py`` ``calc_gripper_pose``:
+    ``position_fraction`` / ``slerp_fraction`` toward a fixed target from the current TCP.
+    """
+
+    a = min(1.0, max(0.0, float(alpha)))
+    tx = float(target.position.x)
+    ty = float(target.position.y)
+    tz = float(target.position.z)
+    tqx = float(target.orientation.x)
+    tqy = float(target.orientation.y)
+    tqz = float(target.orientation.z)
+    tqw = float(target.orientation.w)
+    p0 = np.asarray(cur_xyz, dtype=np.float64)
+    p1 = np.array([tx, ty, tz], dtype=np.float64)
+    p = (1.0 - a) * p0 + a * p1
+    r0 = Rotation.from_quat(np.asarray(cur_quat_xyzw, dtype=np.float64))
+    r1 = Rotation.from_quat(np.array([tqx, tqy, tqz, tqw], dtype=np.float64))
+    slerp = Slerp([0.0, 1.0], Rotation.concatenate([r0, r1]))
+    q = slerp([a]).as_quat()[0]
+    return Pose(
+        position=Point(x=float(p[0]), y=float(p[1]), z=float(p[2])),
+        orientation=Quaternion(
+            x=float(q[0]),
+            y=float(q[1]),
+            z=float(q[2]),
+            w=float(q[3]),
+        ),
+    )
 
 
 def _pose_translate_azimuth(
@@ -235,10 +274,52 @@ class TaskBoardCenterMove:
         *,
         stiffness: Sequence[float] = (360.0, 360.0, 360.0, 200.0, 200.0, 200.0),
         damping: Sequence[float] = (100.0, 100.0, 100.0, 40.0, 40.0, 40.0),
+        approach_interp_steps: int = 100,
+        approach_interp_sleep_sec: float = 0.05,
     ) -> None:
         # Match ``GroundTruth`` admittance defaults in ``ai-industry-challenge`` / ``ground_truth/ros/GroundTruth.py``.
         self._stiffness = list(stiffness)
         self._damping = list(damping)
+        # Match ``GroundTruth.insert_cable`` approach ramp: 100 commands × 0.05 s (see ``calc_gripper_pose``).
+        self._approach_interp_steps = int(approach_interp_steps)
+        self._approach_interp_sleep_sec = float(approach_interp_sleep_sec)
+
+    def _approach_pose_target(
+        self,
+        policy: Policy,
+        move_robot: MoveRobotCallback,
+        tf_buffer: Any,
+        pose_target: Pose,
+    ) -> None:
+        """Blend from live TCP toward ``pose_target`` (LERP xyz + SLERP quat), like ``GroundTruth``."""
+
+        n = self._approach_interp_steps
+        if n <= 0:
+            policy.set_pose_target(
+                move_robot,
+                pose_target,
+                stiffness=self._stiffness,
+                damping=self._damping,
+            )
+            return
+        sleep_s = self._approach_interp_sleep_sec
+        for step in range(n):
+            alpha = float(step + 1) / float(n)
+            ax, ay, az, aqx, aqy, aqz, aqw, _ = _gripper_tcp_pose_base_link(tf_buffer)
+            cmd = _blend_pose_toward_target(
+                (ax, ay, az),
+                (aqx, aqy, aqz, aqw),
+                pose_target,
+                alpha,
+            )
+            policy.set_pose_target(
+                move_robot,
+                cmd,
+                stiffness=self._stiffness,
+                damping=self._damping,
+            )
+            if sleep_s > 0.0:
+                policy.sleep_for(sleep_s)
 
     def apply(self, inp: TaskBoardCenterMoveInput) -> TaskBoardCenterMoveOutput:
         pose = _pose_translate_azimuth(
@@ -248,12 +329,7 @@ class TaskBoardCenterMove:
             z_m=inp.initialize_tcp_z_m,
             azimuth_rad=inp.target_yaw_rad,
         )
-        inp.policy.set_pose_target(
-            inp.move_robot,
-            pose,
-            stiffness=self._stiffness,
-            damping=self._damping,
-        )
+        self._approach_pose_target(inp.policy, inp.move_robot, inp.tf_buffer, pose)
 
         dt = float(inp.sim_cycle_sec)
         if dt <= 0.0:
@@ -323,12 +399,7 @@ class TaskBoardCenterMove:
         tqw = float(tp.orientation.w)
         r_tgt = Rotation.from_quat((tqx, tqy, tqz, tqw))
 
-        inp.policy.set_pose_target(
-            inp.move_robot,
-            tp,
-            stiffness=self._stiffness,
-            damping=self._damping,
-        )
+        self._approach_pose_target(inp.policy, inp.move_robot, inp.tf_buffer, tp)
 
         dt = float(inp.sim_cycle_sec)
         if dt <= 0.0:

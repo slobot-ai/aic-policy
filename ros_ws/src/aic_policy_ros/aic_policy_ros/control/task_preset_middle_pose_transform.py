@@ -19,6 +19,7 @@ from aic_model.policy import MoveRobotCallback, Policy
 
 from aic_policy_ros.task_board_insert_pose import (
     default_task_manifest_path,
+    initial_tcp_pose_from_manifest_row,
     live_board_yaw_minus_reference_rad,
     load_task_manifest,
     manifest_row_for_task,
@@ -36,14 +37,12 @@ from .task_board_center_move import (
 
 @dataclass
 class TaskPresetMiddlePoseTransformInput:
-    """Second-action context: logging, motion, episode TCP anchor, vision board pose, task id."""
+    """Second-action context: logging, motion, vision board pose, task id (TCP anchor from manifest ``initial_tcp_pose``)."""
 
     logger: Any
     policy: Policy
     move_robot: MoveRobotCallback
     sim_cycle_sec: float
-    tcp_episode_start_pos_m: tuple[float, float, float] | None
-    tcp_episode_start_quat_xyzw: tuple[float, float, float, float] | None
     task_board_orientation: str
     board_cx_m: float
     board_cy_m: float
@@ -90,9 +89,14 @@ class TaskPresetMiddlePoseTransform:
         )
         logger.info(f"TaskPresetMiddlePoseTransform: manifest entry {json.dumps(row, sort_keys=True)}")
 
-        if inp.tcp_episode_start_pos_m is None or inp.tcp_episode_start_quat_xyzw is None:
-            logger.warning("TaskPresetMiddlePoseTransform: missing TCP episode start (first_action not run?)")
+        initial_tcp = initial_tcp_pose_from_manifest_row(row)
+        if initial_tcp is None:
+            logger.warning(
+                "TaskPresetMiddlePoseTransform: manifest row missing or invalid initial_tcp_pose "
+                "(expected xyz_m[3] and quat_xyzw[4]); skipping second move"
+            )
             return
+        anchor_pos_m, anchor_quat_xyzw = initial_tcp
 
         fto = row.get("final_tcp_offset")
         if not isinstance(fto, dict):
@@ -133,15 +137,15 @@ class TaskPresetMiddlePoseTransform:
                     task_board_cy_m=float(inp.board_cy_m),
                     task_board_yaw_rad=float(inp.board_yaw_rad),
                     orientation=orient,
-                    initial_tcp=InitialTcpPose(
-                        xyz_m=tuple(float(x) for x in inp.tcp_episode_start_pos_m),
-                        quat_xyzw=tuple(float(x) for x in inp.tcp_episode_start_quat_xyzw),
+                    initial_tcp_pose=InitialTcpPose(
+                        xyz_m=tuple(float(x) for x in anchor_pos_m),
+                        quat_xyzw=tuple(float(x) for x in anchor_quat_xyzw),
                     ),
                 )
             )
             p_goal, q_goal = final_tcp_pose_from_initial_and_offset(
-                np.asarray(inp.tcp_episode_start_pos_m, dtype=np.float64),
-                np.asarray(inp.tcp_episode_start_quat_xyzw, dtype=np.float64),
+                np.asarray(anchor_pos_m, dtype=np.float64),
+                np.asarray(anchor_quat_xyzw, dtype=np.float64),
                 mp_out.tcp_offset.as_manifest_dict(),
             )
             dz_lin = tcp_manifest_linear_z_extra_m(kind)
@@ -229,8 +233,8 @@ class TaskPresetMiddlePoseTransform:
             actual_tcp_quat_y=o.actual_tcp_quat_y,
             actual_tcp_quat_z=o.actual_tcp_quat_z,
             actual_tcp_quat_w=o.actual_tcp_quat_w,
-            episode_start_tcp_xyz_m=inp.tcp_episode_start_pos_m,
-            episode_start_tcp_quat_xyzw=inp.tcp_episode_start_quat_xyzw,
+            episode_start_tcp_xyz_m=anchor_pos_m,
+            episode_start_tcp_quat_xyzw=anchor_quat_xyzw,
         )
         logger.info(
             "TaskBoardPolicy: second action move (pre-insert) "

@@ -1,0 +1,26 @@
+{
+  "schema": "aic_policy_ros.camera_extrinsics.v1",
+  "camera_id": "left_camera",
+  "observation": "third",
+  "frame_parent": "base_link",
+  "convention": "p_camera_homogeneous = T_cam_from_base @ p_base_homogeneous",
+  "T_cam_from_base_row_major": [
+    0.9228509675518702,
+    -0.013313610533401354,
+    -0.3849270573279326,
+    0.3253375510801233,
+    0.17635155134435726,
+    -0.8738824182379302,
+    0.45302279129538886,
+    0.5137595716098852,
+    -0.3424123567090053,
+    -0.4859550049841979,
+    -0.8041153593258822,
+    0.399061387003496,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "source": "tf2_ros.Buffer.lookup_transform(CameraInfo.header.frame_id, base_link) \u2192 T_cam_from_base (p_cam = T @ p_base)"
+}

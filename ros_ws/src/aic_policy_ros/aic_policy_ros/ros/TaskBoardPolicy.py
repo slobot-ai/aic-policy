@@ -47,8 +47,6 @@ class TaskBoardPolicy(Policy):
 
         task_board_vision.second_observation(
             task=task,
-            tcp_episode_start_pos_m=task_board_control.tcp_episode_start_pos_m,
-            tcp_episode_start_quat_xyzw=task_board_control.tcp_episode_start_quat_xyzw,
         )
         self.last_task_board_orientation = task_board_vision.last_task_board_orientation
 

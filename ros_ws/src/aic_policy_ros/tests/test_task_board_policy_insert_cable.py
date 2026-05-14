@@ -101,7 +101,7 @@ def _trial_yaml_path() -> Path:
     alt = aic_policy_repo_root().parent / "aic" / "aic_engine" / "config" / "generated_configs" / "trial_0.yaml"
     if alt.is_file():
         return alt.resolve()
-    pytest.skip(f"missing trial yaml: tried {trial} and {alt}")
+    pytest.skip(f"missing trial yaml: tried {challenge_trial} and {alt}")
 
 
 @pytest.fixture
@@ -120,8 +120,8 @@ def fast_rectangle_classifier(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _assert_extrinsics_fixtures_match_vision() -> None:
-    from vision.transform.rectangle_forward_projection import (
-        T_CAM_FROM_BASE_BY_CAMERA,
+    from aic_policy_ros.wrist_extrinsics_testing_matrices import (
+        T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION,
         T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION,
     )
 
@@ -131,7 +131,11 @@ def _assert_extrinsics_fixtures_match_vision() -> None:
             assert path.is_file(), f"missing fixture {path}"
             doc = json.loads(path.read_text(encoding="utf-8"))
             T_json = T_cam_from_base_from_extrinsics_dict(doc)
-            src = T_CAM_FROM_BASE_BY_CAMERA if phase == "first" else T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION
+            src = (
+                T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION
+                if phase == "first"
+                else T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION
+            )
             T_ref = np.asarray(src[cam], dtype=np.float64)
             np.testing.assert_allclose(T_json, T_ref, rtol=0.0, atol=1e-9)
 
@@ -212,14 +216,31 @@ def test_third_observation_writes_bgr_and_md5_retry(
         return obs_queue.popleft()
 
     out_root = tmp_path / "out"
-    vision = TaskBoardVision(policy, get_observation, 0, output_root=out_root)
+    vision = TaskBoardVision(policy, get_observation, 0, output_root=out_root, tf_buffer=buf)
     vision.first_observation()
     vision.second_observation()
     vision.third_observation()
 
     for cam in _CAMERAS:
-        png = out_root / "episode_0" / cam / "input" / "third_observation_bgr.png"
-        assert png.is_file(), f"expected dump {png}"
+        base = out_root / "episode_0" / cam / "input"
+        assert (base / "third_observation_bgr.png").is_file()
+        assert (base / "third_observation_hsv.png").is_file()
+        assert (base / "third_observation_hsv_h_turbo.png").is_file()
+        assert (base / "third_observation_blue_port_mask.png").is_file()
+        assert not (base / "third_observation_hsv_turbo.png").exists()
+
+        ext_path = out_root / "episode_0" / cam / "extrinsics" / "third_observation_extrinsics.json"
+        assert ext_path.is_file(), ext_path
+        doc_third = json.loads(ext_path.read_text(encoding="utf-8"))
+        assert doc_third["observation"] == "third"
+        T_third = T_cam_from_base_from_extrinsics_dict(doc_third)
+        first_path = _EPISODE_FIXTURE_ROOT / cam / "extrinsics" / "first_observation_extrinsics.json"
+        T_first_fixture = T_cam_from_base_from_extrinsics_dict(
+            json.loads(first_path.read_text(encoding="utf-8"))
+        )
+        np.testing.assert_allclose(T_third, T_first_fixture, rtol=0.0, atol=1e-9)
+
+    assert (out_root / "episode_0" / "multiview" / "3" / "yaw_pi" / "rectangle_classifier_trajectory.png").is_file()
 
     node.destroy_node()
 

@@ -114,8 +114,8 @@ def extrinsics_dict(
     source: str,
     observation: str,
 ) -> dict[str, Any]:
-    if observation not in ("first", "second"):
-        raise ValueError("observation must be 'first' or 'second'")
+    if observation not in ("first", "second", "third"):
+        raise ValueError("observation must be 'first', 'second', or 'third'")
     T = np.asarray(T_cam_from_base, dtype=np.float64).reshape(4, 4)
     return {
         "schema": "aic_policy_ros.camera_extrinsics.v1",
@@ -268,7 +268,7 @@ def dump_multiview_calibration_json(
     episode_id: int | None = None,
     extrinsics_matrix_source: str | None = None,
 ) -> None:
-    """Write ``intrinsics.json`` (optional) and ``{first|second}_observation_extrinsics.json`` per camera.
+    """Write ``intrinsics.json`` (optional) and ``{first|second|third}_observation_extrinsics.json`` per camera.
 
     When ``episode_id`` is set, files go under ``out_root`` / :func:`episode_dir_name` / ``<camera_id>`` /
     ``extrinsics/`` (same episode subtree as :class:`aic_policy_ros.multiview_snapshot.MultiviewSnapshot`).
@@ -276,11 +276,12 @@ def dump_multiview_calibration_json(
     (``<camera_id>/extrinsics/`` directly under ``out_root``), matching fixture layout.
 
     ``extrinsics_matrix_source`` is stored in each extrinsics JSON ``source`` field; when ``None``,
-    defaults to the ``ai-industry-challenge`` static wrist matrices for the observation phase.
+    defaults to symbolic names under :mod:`aic_policy_ros.wrist_extrinsics_testing_matrices` for the
+    observation phase (live dumps from :class:`TaskBoardVision` use TF and store the TF provenance string).
     """
 
-    if observation_phase not in ("first", "second"):
-        raise ValueError("observation_phase must be 'first' or 'second'")
+    if observation_phase not in ("first", "second", "third"):
+        raise ValueError("observation_phase must be 'first', 'second', or 'third'")
 
     episode_prefix = Path(episode_dir_name(episode_id)) if episode_id is not None else Path()
 
@@ -296,11 +297,20 @@ def dump_multiview_calibration_json(
                 encoding="utf-8",
             )
         T = np.asarray(t_cam_from_base_by_camera[cam_id], dtype=np.float64).reshape(4, 4)
-        ext_source = extrinsics_matrix_source or (
-            "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA"
-            if observation_phase == "first"
-            else "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION"
-        )
+        if extrinsics_matrix_source is not None:
+            ext_source = extrinsics_matrix_source
+        elif observation_phase == "first":
+            ext_source = (
+                "aic_policy_ros.wrist_extrinsics_testing_matrices.T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION"
+            )
+        elif observation_phase == "second":
+            ext_source = (
+                "aic_policy_ros.wrist_extrinsics_testing_matrices.T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION"
+            )
+        else:
+            ext_source = (
+                "aic_policy_ros.wrist_extrinsics_testing_matrices.T_CAM_FROM_BASE_BY_CAMERA_THIRD_OBSERVATION"
+            )
         ext = extrinsics_dict(
             camera_id=cam_id,
             T_cam_from_base=T,

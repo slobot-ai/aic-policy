@@ -103,8 +103,7 @@ def t_cam_from_base_by_camera_from_tf_buffer(
             tf_msg = tf_buffer.lookup_transform(cam_frame, base_frame, lookup_time, timeout=timeout)
         except tf2_ros.TransformException as exc:
             logger.warning(
-                f"TaskBoardVision: TF lookup_transform({cam_frame!r}, {base_frame!r}) failed ({exc}); "
-                "using static extrinsics fallback"
+                f"TaskBoardVision: TF lookup_transform({cam_frame!r}, {base_frame!r}) failed ({exc})"
             )
             return None
         out[cam_key] = transform_stamped_to_T_target_from_source(tf_msg)

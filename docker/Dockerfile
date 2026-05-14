@@ -119,7 +119,6 @@ fi
 export ZENOH_CONFIG_OVERRIDE
 echo "ZENOH_CONFIG_OVERRIDE=${ZENOH_CONFIG_OVERRIDE}"
 
-export RCUTILS_LOGGING_USE_STDOUT=1
 cd /aic-vision
 exec pixi run --as-is /launch_model.sh "$@"
 EOF

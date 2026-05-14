@@ -12,6 +12,7 @@ from scipy.spatial.transform import Rotation
 from aic_policy_ros.task_board_episode_geometry import task_board_top_face_center_base_m_from_pose_dict
 from aic_policy_ros.task_board_insert_pose import (
     REFERENCE_TASK_BOARD_XYZ_RPY,
+    initial_tcp_pose_from_manifest_row,
     manifest_row_for_task,
     quat_goal_xyzw_with_live_board_yaw_delta,
     tcp_goal_pose_from_manifest_and_board,
@@ -23,6 +24,20 @@ def _reference_board_top_face_xy_and_pose_z() -> tuple[float, float, float]:
     ref = {"x": xr, "y": yr, "z": zr, "roll": rr, "pitch": pr, "yaw": yw}
     cx, cy, _ = task_board_top_face_center_base_m_from_pose_dict(ref)
     return cx, cy, zr
+
+
+def test_initial_tcp_pose_from_manifest_row() -> None:
+    row = {
+        "trial_key": "trial_0",
+        "initial_tcp_pose": {"xyz_m": [1.0, 2.0, 3.0], "quat_xyzw": [0.0, 0.0, 0.0, 1.0]},
+    }
+    out = initial_tcp_pose_from_manifest_row(row)
+    assert out is not None
+    assert out[0] == (1.0, 2.0, 3.0)
+    assert out[1] == (0.0, 0.0, 0.0, 1.0)
+    assert initial_tcp_pose_from_manifest_row({}) is None
+    assert initial_tcp_pose_from_manifest_row({"initial_tcp_pose": "bad"}) is None
+    assert initial_tcp_pose_from_manifest_row(None) is None
 
 
 def test_manifest_row_fallback_trial_key() -> None:

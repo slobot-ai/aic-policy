@@ -22,5 +22,5 @@
     0.0,
     1.0
   ],
-  "source": "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA"
+  "source": "aic_policy_ros.wrist_extrinsics_testing_matrices.T_CAM_FROM_BASE_BY_CAMERA_FIRST_OBSERVATION"
 }

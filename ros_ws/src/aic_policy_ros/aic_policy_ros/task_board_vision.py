@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
@@ -25,10 +26,7 @@ from aic_policy_ros.multiview_snapshot import (
 )
 from aic_policy_ros.task_board_calibration_io import dump_multiview_calibration_json
 from aic_policy_ros.task_board_center_estimation import TaskBoardCenterEstimationOutput
-from aic_policy_ros.task_board_episode_geometry import (
-    t_cam_from_base_by_camera_dict,
-    z_face_in_base,
-)
+from aic_policy_ros.task_board_episode_geometry import z_face_in_base
 from aic_policy_ros.task_board_rectangle_estimation import (
     TaskBoardRectangleCandidate,
     TaskBoardRectangleEstimationOutput,
@@ -152,34 +150,29 @@ class TaskBoardVision:
         return self._rectangle_vision
 
     def _resolve_multiview_cam_extrinsics(
-        self, observation: Any, observation_phase: Literal["first", "second"]
+        self, observation: Any, observation_phase: Literal["first", "second", "third"]
     ) -> tuple[tuple[np.ndarray, np.ndarray, np.ndarray], dict[str, np.ndarray], str]:
         """``(T_left, T_center, T_right), dict for dumps, extrinsics JSON source string)``."""
 
-        tried_tf = self._tf_buffer is not None
-        if tried_tf:
-            t_dict = t_cam_from_base_by_camera_from_tf_buffer(
-                self._tf_buffer,
-                observation,
-                self._logger,
-                base_frame=self._base_link_frame,
-                tf_lookup_timeout_sec=self._tf_lookup_timeout_sec,
+        if self._tf_buffer is None:
+            raise RuntimeError(
+                "TaskBoardVision requires the ROS node's tf2_ros.Buffer as _tf_buffer "
+                "(static wrist extrinsics fallback was removed)."
             )
-            if t_dict is not None:
-                t_tuple = (t_dict["left_camera"], t_dict["center_camera"], t_dict["right_camera"])
-                return t_tuple, t_dict, _EXTRINSICS_SOURCE_TF2
-            self._logger.warning("TaskBoardVision: falling back to static vision wrist extrinsics")
-
-        t_dict = t_cam_from_base_by_camera_dict(observation_phase)
-        t_tuple = (t_dict["left_camera"], t_dict["center_camera"], t_dict["right_camera"])
-        src = (
-            "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA"
-            if observation_phase == "first"
-            else "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA_SECOND_OBSERVATION"
+        t_dict = t_cam_from_base_by_camera_from_tf_buffer(
+            self._tf_buffer,
+            observation,
+            self._logger,
+            base_frame=self._base_link_frame,
+            tf_lookup_timeout_sec=self._tf_lookup_timeout_sec,
         )
-        if not tried_tf:
-            self._logger.info("TaskBoardVision: static vision wrist extrinsics (no tf_buffer)")
-        return t_tuple, t_dict, src
+        if t_dict is None:
+            raise RuntimeError(
+                "TaskBoardVision: could not resolve multiview T_cam_from_base from TF "
+                "(check CameraInfo.header.frame_id and TF connectivity)."
+            )
+        t_tuple = (t_dict["left_camera"], t_dict["center_camera"], t_dict["right_camera"])
+        return t_tuple, t_dict, _EXTRINSICS_SOURCE_TF2
 
     def _dump_scaled_hsv_turbo_multiview(self, snap_out: MultiviewSnapshotOutput) -> None:
         """Quarter-res BGR → HSV; writes raw HSV and **V** channel mapped with Turbo (dark-board cue)."""
@@ -263,6 +256,8 @@ class TaskBoardVision:
         rectangle_half_extent_y_m: float | None = None,
         image_scale: float = 1.0,
         observation_dump_id: int | None = None,
+        classifier_camera_indices: tuple[int, ...] | None = None,
+        initializer_camera_indices: tuple[int, ...] | None = None,
     ) -> tuple[TaskBoardRectangleEstimationOutput, tuple[Any, Any], Any]:
         from vision.rectangle_vision import RectangleVisionInput
 
@@ -280,6 +275,18 @@ class TaskBoardVision:
             dump_obs_id = str(int(observation_dump_id))
             dump_layout = "episode_cameras"
         cam_names = ("left_camera", "center_camera", "right_camera")
+        if initializer_camera_indices is not None:
+            sub_i = ", ".join(cam_names[i] for i in initializer_camera_indices)
+            self._logger.info(
+                f"TaskBoardPolicy: RectangleVision[{vision_subject}] "
+                f"initializer uses subset only: {sub_i} (indices={initializer_camera_indices!r})"
+            )
+        if classifier_camera_indices is not None:
+            sub = ", ".join(cam_names[i] for i in classifier_camera_indices)
+            self._logger.info(
+                f"TaskBoardPolicy: RectangleVision[{vision_subject}] "
+                f"classifier uses subset only: {sub} (indices={classifier_camera_indices!r})"
+            )
         rv = self._rv()
         candidates: list[TaskBoardRectangleCandidate] = []
         rv_outs: list[Any] = []
@@ -298,10 +305,18 @@ class TaskBoardVision:
                 dump_layout=dump_layout,
                 dump_observation_id=dump_obs_id,
                 camera_names=cam_names,
+                classifier_camera_indices=classifier_camera_indices,
+                initializer_camera_indices=initializer_camera_indices,
             )
             if i == 0:
                 inp_board_template = inp
+            t0 = time.perf_counter()
             out = rv.run(inp)
+            elapsed_s = time.perf_counter() - t0
+            self._logger.info(
+                f"TaskBoardPolicy: RectangleVision[{vision_subject}] "
+                f"run[{i}] seed_y_rad={yaw_seed:.6f} runtime_sec={elapsed_s:.6f}"
+            )
             rv_outs.append(out)
             if i == 0:
                 self._write_mask_pngs(out.masks_u8_downscaled, mask_dump_paths, mask_dump_kind)
@@ -343,8 +358,8 @@ class TaskBoardVision:
         t_cam_from_base_by_camera: dict[str, np.ndarray],
         extrinsics_matrix_source: str,
     ) -> None:
-        if observation_phase not in ("first", "second"):
-            raise ValueError("observation_phase must be 'first' or 'second'")
+        if observation_phase not in ("first", "second", "third"):
+            raise ValueError("observation_phase must be 'first', 'second', or 'third'")
         dump_multiview_calibration_json(
             self._output_root,
             observation,
@@ -441,8 +456,6 @@ class TaskBoardVision:
         self,
         *,
         task: Any | None = None,
-        tcp_episode_start_pos_m: tuple[float, float, float] | None = None,
-        tcp_episode_start_quat_xyzw: tuple[float, float, float, float] | None = None,
     ) -> TaskBoardRectangleEstimationOutput:
         observation = self._observation_after_stale_full_res_bgr_retry(
             self._get_observation(),
@@ -520,14 +533,13 @@ class TaskBoardVision:
                 overlay_xy: tuple[float, float] | None = None
                 if (
                     task is not None
-                    and tcp_episode_start_pos_m is not None
-                    and tcp_episode_start_quat_xyzw is not None
                     and orient_res.task_board_cx_m is not None
                     and orient_res.task_board_cy_m is not None
                     and orient_res.task_board_yaw_rad is not None
                 ):
                     from aic_policy_ros.task_board_insert_pose import (
                         default_task_manifest_path,
+                        initial_tcp_pose_from_manifest_row,
                         load_task_manifest,
                         manifest_row_for_task,
                         tcp_manifest_linear_z_extra_m,
@@ -541,13 +553,16 @@ class TaskBoardVision:
 
                     rows = load_task_manifest()
                     row = manifest_row_for_task(task, self._episode_id, rows)
-                    if (
+                    initial_tcp = initial_tcp_pose_from_manifest_row(row) if row is not None else None
+                    pose_ok = (
                         row is not None
                         and isinstance(row.get("trial_key"), str)
                         and isinstance(row.get("task_board"), dict)
                         and isinstance(row["task_board"].get("pose"), dict)
                         and all(k in row["task_board"]["pose"] for k in ("x", "y", "z", "roll", "pitch", "yaw"))
-                    ):
+                    )
+                    if row is not None and initial_tcp is not None and pose_ok:
+                        anchor_pos_m, anchor_quat_xyzw = initial_tcp
                         try:
                             mp_out = VisionTcpPreset.apply(
                                 VisionTcpPresetIn(
@@ -557,15 +572,15 @@ class TaskBoardVision:
                                     task_board_cy_m=float(orient_res.task_board_cy_m),
                                     task_board_yaw_rad=float(orient_res.task_board_yaw_rad),
                                     orientation=orient_res.kind,
-                                    initial_tcp=InitialTcpPose(
-                                        xyz_m=tuple(float(x) for x in tcp_episode_start_pos_m),
-                                        quat_xyzw=tuple(float(x) for x in tcp_episode_start_quat_xyzw),
+                                    initial_tcp_pose=InitialTcpPose(
+                                        xyz_m=tuple(float(x) for x in anchor_pos_m),
+                                        quat_xyzw=tuple(float(x) for x in anchor_quat_xyzw),
                                     ),
                                 )
                             )
                             p_goal, _q_goal = final_tcp_pose_from_initial_and_offset(
-                                np.asarray(tcp_episode_start_pos_m, dtype=np.float64),
-                                np.asarray(tcp_episode_start_quat_xyzw, dtype=np.float64),
+                                np.asarray(anchor_pos_m, dtype=np.float64),
+                                np.asarray(anchor_quat_xyzw, dtype=np.float64),
                                 mp_out.tcp_offset.as_manifest_dict(),
                             )
                             dz_lin = tcp_manifest_linear_z_extra_m(str(row.get("task_kind", "")))
@@ -591,8 +606,14 @@ class TaskBoardVision:
                             )
                         except (FileNotFoundError, KeyError, OSError, TypeError, ValueError) as exc:
                             title_extra = f"\nTCP overlay skipped: {exc!r}"
+                    elif row is None:
+                        title_extra = "\nTCP overlay skipped: no manifest row for task/episode_id"
+                    elif initial_tcp is None:
+                        title_extra = "\nTCP overlay skipped: manifest row missing or invalid initial_tcp_pose"
                     else:
-                        title_extra = "\nTCP overlay skipped: no manifest row / task_board.pose"
+                        title_extra = (
+                            "\nTCP overlay skipped: manifest row missing trial_key or full task_board.pose"
+                        )
 
                 base_title = TaskBoardOrientation.figure_title_for_result(orient_res)
                 TaskBoardOrientation.write_xy_top_view_task_board_and_logo(
@@ -629,12 +650,16 @@ class TaskBoardVision:
         return rectangle_logo
 
     def third_observation(self) -> None:
-        """Decode and dump full-resolution multiview BGR after the second snapshot.
+        """Decode multiview BGR, HSV H preview, blue-port H segmentation, and ``RectangleVision`` (dump id 3).
 
         If any camera's full-res BGR still matches the second observation (MD5 of decoded
         ``sensor_msgs/Image`` bytes), yields once and retries ``get_observation()`` —
         same stale-frame pattern as :meth:`second_observation` vs the first snapshot,
         but compared against the second multiview snapshot.
+
+        Uses the same TF-only extrinsics resolution as observations **1** and **2** (see
+        :meth:`_resolve_multiview_cam_extrinsics`); matrices are written as
+        ``third_observation_extrinsics.json`` (same numeric convention as the second pose).
         """
 
         observation = self._get_observation()
@@ -650,10 +675,52 @@ class TaskBoardVision:
                 phase_name="third observation",
             )
 
-        self._multiview_snapshot.apply(
+        t_cam_from_base, t_by, matrix_src = self._resolve_multiview_cam_extrinsics(observation, "third")
+        self._dump_multiview_calibration_json(
+            observation,
+            "third",
+            write_intrinsics=False,
+            t_cam_from_base_by_camera=t_by,
+            extrinsics_matrix_source=matrix_src,
+        )
+
+        snap_out = self._multiview_snapshot.apply(
             MultiviewSnapshotInput(
                 observation=observation,
                 episode_id=self._episode_id,
                 dump_filename="third_observation_bgr.png",
             )
+        )
+        self._dump_scaled_hsv_h_turbo_multiview(snap_out)
+        z_table = z_face_in_base()
+        self._logger.info(f"TaskBoardVision: third observation z_face_in_base={z_table:.9f}")
+        from vision.rectangle3d_detector import sc_port_rectangle_half_extents_xy_m
+        from vision.rectangle_segmentation import SegmentationMode
+
+        bql, bqc, bqr = _bgr_quarter_views(snap_out)
+        mask_paths = MultiviewSnapshot.multiview_bgr_dump_paths(
+            self._output_root, self._episode_id, "third_observation_blue_port_mask.png"
+        )
+        hx_sc, hy_sc = sc_port_rectangle_half_extents_xy_m()
+        self._logger.info(
+            "TaskBoardVision: third observation blue SC port geometry "
+            f"RectangleVision z_face_in_base=z_face_in_base()={z_table:.9f} (task-board top; no SC mesh z stack) "
+            f"rectangle_half_extent_xy_m=({hx_sc:.9f}, {hy_sc:.9f})"
+        )
+        self._fit_two_candidates(
+            bgr_left=bql,
+            bgr_center=bqc,
+            bgr_right=bqr,
+            segmentation_mode=SegmentationMode.BLUE_SC_PORT,
+            z_table=z_table,
+            t_cam_from_base=t_cam_from_base,
+            mask_dump_paths=mask_paths,
+            mask_dump_kind="blue-port mask",
+            rectangle_half_extent_x_m=hx_sc,
+            rectangle_half_extent_y_m=hy_sc,
+            image_scale=1.0,
+            vision_subject="blue_sc_port",
+            observation_dump_id=3,
+            initializer_camera_indices=(1,),
+            classifier_camera_indices=(1,),
         )
