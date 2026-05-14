@@ -1,0 +1,31 @@
+[workspace]
+name = "aic-policy"
+version = "0.1.0"
+channels = ["robostack-kilted", "conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+# CLI ``colcon`` (build/test ROS 2 workspaces); pulls in colcon-core and extensions.
+colcon-common-extensions = "*"
+ros-kilted-rmw-zenoh-cpp = "*"
+ros-kilted-ros-core = "*"
+ros-kilted-rclpy = "*"
+ros-kilted-tf2-ros-py = "*"
+numpy = ">=2.0.0,<2.3.0"
+scipy = "*"
+opencv = "*"
+pytest = "*"
+packaging = ">=24.2,<26"
+matplotlib = ">=3.10.9,<4"
+
+[pypi-dependencies]
+torch = ">=2.2.0"
+
+[activation]
+scripts = ["pixi_env_setup.sh"]
+
+[tasks]
+aic-policy-model = "bash scripts/run_aic_vision_model.sh"
+pytest = "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=ros_ws/src/aic_policy_ros:../aic/aic_model:../aic/.pixi/envs/default/lib/python3.12/site-packages python -m pytest -q ros_ws/src/aic_policy_ros/tests"
+colcon-build = "bash -eo pipefail -c 'cd ros_ws && colcon build'"
+colcon-build-vision = "bash -eo pipefail -c 'cd ros_ws && colcon build --packages-select aic_policy_ros'"

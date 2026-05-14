@@ -1,0 +1,26 @@
+{
+  "schema": "aic_policy_ros.camera_extrinsics.v1",
+  "camera_id": "center_camera",
+  "observation": "first",
+  "frame_parent": "base_link",
+  "convention": "p_camera_homogeneous = T_cam_from_base @ p_base_homogeneous",
+  "T_cam_from_base_row_major": [
+    0.9999999882275348,
+    0.00015214585896356267,
+    1.9914021589675373e-05,
+    0.3717788749871604,
+    0.0001418112101789781,
+    -0.96594225743871,
+    0.25875767656977744,
+    0.16386991021960184,
+    5.860470393413876e-05,
+    -0.25875767069953015,
+    -0.9659422676431766,
+    0.5872859442057675,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "source": "vision.transform.rectangle_forward_projection.T_CAM_FROM_BASE_BY_CAMERA"
+}

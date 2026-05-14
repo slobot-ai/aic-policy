@@ -1,0 +1,10 @@
+[0.000000] (-) TimerEvent: {}
+[0.000169] (-) JobUnselected: {'identifier': 'aic_control_interfaces'}
+[0.000196] (-) JobUnselected: {'identifier': 'aic_engine_interfaces'}
+[0.000212] (-) JobUnselected: {'identifier': 'aic_model'}
+[0.000225] (-) JobUnselected: {'identifier': 'aic_model_interfaces'}
+[0.000238] (-) JobUnselected: {'identifier': 'aic_task_interfaces'}
+[0.000251] (aic_vision_ros) JobQueued: {'identifier': 'aic_vision_ros', 'dependencies': OrderedDict({'aic_control_interfaces': '/home/alexis/Documents/python/robotics/slobot-ai/aic-vision/install/aic_control_interfaces', 'aic_task_interfaces': '/home/alexis/Documents/python/robotics/slobot-ai/aic-vision/install/aic_task_interfaces', 'aic_model_interfaces': '/home/alexis/Documents/python/robotics/slobot-ai/aic-vision/install/aic_model_interfaces', 'aic_model': '/home/alexis/Documents/python/robotics/slobot-ai/aic-vision/install/aic_model'})}
+[0.000432] (aic_vision_ros) JobStarted: {'identifier': 'aic_vision_ros'}
+[0.012486] (aic_vision_ros) JobEnded: {'identifier': 'aic_vision_ros', 'rc': 1}
+[0.022943] (-) EventReactorShutdown: {}

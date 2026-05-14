@@ -1,0 +1,360 @@
+[
+  {
+    "trial_key": "trial_0",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 0,
+    "sfp_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.0917462706565857,
+        "y": 0.3926102817058563,
+        "z": -0.12910692393779755
+      },
+      "angular": {
+        "x": -0.015166966244578362,
+        "y": 0.5684312582015991,
+        "z": -3.0331804752349854
+      }
+    }
+  },
+  {
+    "trial_key": "trial_1",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 0,
+    "sfp_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.1144745945930481,
+        "y": 0.3927435278892517,
+        "z": -0.1293494701385498
+      },
+      "angular": {
+        "x": -0.01543524768203497,
+        "y": 0.5678596496582031,
+        "z": -3.0332589149475098
+      }
+    }
+  },
+  {
+    "trial_key": "trial_2",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 1,
+    "sfp_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09142445772886276,
+        "y": 0.352758526802063,
+        "z": -0.1291027069091797
+      },
+      "angular": {
+        "x": -0.015808746218681335,
+        "y": 0.5676077008247375,
+        "z": -3.033224582672119
+      }
+    }
+  },
+  {
+    "trial_key": "trial_3",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 1,
+    "sfp_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.11491715908050537,
+        "y": 0.3530309796333313,
+        "z": -0.12909884750843048
+      },
+      "angular": {
+        "x": -0.015871189534664154,
+        "y": 0.567379891872406,
+        "z": -3.0330114364624023
+      }
+    }
+  },
+  {
+    "trial_key": "trial_4",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 2,
+    "sfp_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09184103459119797,
+        "y": 0.31267958879470825,
+        "z": -0.12910890579223633
+      },
+      "angular": {
+        "x": -0.015282493084669113,
+        "y": 0.5680652856826782,
+        "z": -3.0332517623901367
+      }
+    }
+  },
+  {
+    "trial_key": "trial_5",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 2,
+    "sfp_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.11471161991357803,
+        "y": 0.3133132755756378,
+        "z": -0.12904952466487885
+      },
+      "angular": {
+        "x": -0.01615508273243904,
+        "y": 0.5672901272773743,
+        "z": -3.0330305099487305
+      }
+    }
+  },
+  {
+    "trial_key": "trial_6",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 3,
+    "sfp_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09170712530612946,
+        "y": 0.27263349294662476,
+        "z": -0.12910395860671997
+      },
+      "angular": {
+        "x": -0.015248413197696209,
+        "y": 0.5678704380989075,
+        "z": -3.033311605453491
+      }
+    }
+  },
+  {
+    "trial_key": "trial_7",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 3,
+    "sfp_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.11467739939689636,
+        "y": 0.27348631620407104,
+        "z": -0.12908215820789337
+      },
+      "angular": {
+        "x": -0.015362677164375782,
+        "y": 0.567520022392273,
+        "z": -3.0335004329681396
+      }
+    }
+  },
+  {
+    "trial_key": "trial_8",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 4,
+    "sfp_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09194590896368027,
+        "y": 0.23335221409797668,
+        "z": -0.12909169495105743
+      },
+      "angular": {
+        "x": -0.015228272415697575,
+        "y": 0.5678132772445679,
+        "z": -3.0334131717681885
+      }
+    }
+  },
+  {
+    "trial_key": "trial_9",
+    "position_slot": "middle",
+    "nic_translation_m": 0.0009500000000000012,
+    "task_kind": "nic",
+    "nic_card_index": 4,
+    "sfp_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.11478319019079208,
+        "y": 0.2322998195886612,
+        "z": -0.1291108876466751
+      },
+      "angular": {
+        "x": -0.015735896304249763,
+        "y": 0.5682671666145325,
+        "z": -3.03304123878479
+      }
+    }
+  },
+  {
+    "trial_key": "trial_10",
+    "position_slot": "middle",
+    "sc_translation_m": -0.0024999999999999988,
+    "task_kind": "sc",
+    "sc_port_index": 0,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09918003529310226,
+        "y": 0.18074922263622284,
+        "z": -0.2828969955444336
+      },
+      "angular": {
+        "x": -0.016078654676675797,
+        "y": -0.7187168002128601,
+        "z": 3.0411574840545654
+      }
+    }
+  },
+  {
+    "trial_key": "trial_11",
+    "position_slot": "middle",
+    "sc_translation_m": -0.0024999999999999988,
+    "task_kind": "sc",
+    "sc_port_index": 1,
+    "task_board": {
+      "pose": {
+        "x": 0.15,
+        "y": -0.2,
+        "z": 1.14,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      }
+    },
+    "final_tcp_offset": {
+      "linear": {
+        "x": 0.09913790225982666,
+        "y": 0.13967856764793396,
+        "z": -0.2829490602016449
+      },
+      "angular": {
+        "x": -0.016154799610376358,
+        "y": -0.7196635603904724,
+        "z": 3.0409374237060547
+      }
+    }
+  }
+]

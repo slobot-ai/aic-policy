@@ -1,0 +1,59 @@
+# AIC eval + vision policy (AMD / Mesa DRI). Build expects sibling ``aic`` and ``ai-industry-challenge`` repos
+# (``aic`` for model/interfaces; ``aic_challenge`` for ``src/vision`` because ``aic_policy_ros/vision`` is a symlink).
+#
+#   docker compose -f docker/docker-compose.amdgpu.yaml build --builder default
+#   docker compose -f docker/docker-compose.amdgpu.yaml up -d
+#
+# Paths in this file are resolved from ``docker/``; default ``AIC_ROOT`` is ``../../aic`` (same as ``../aic`` from
+# the ``aic-policy`` repo root). Override with ``export AIC_ROOT=/abs/path/to/aic`` when your layout differs.
+#
+name: aic-policy
+
+services:
+  eval:
+    container_name: aic_eval
+    image: ghcr.io/intrinsic-dev/aic/aic_eval
+    command: >-
+      gazebo_gui:=false launch_rviz:=false ground_truth:=false start_aic_engine:=true
+      shutdown_on_aic_engine_exit:=true model_discovery_timeout_seconds:=600
+    ports:
+      - "7447:7447"
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    volumes:
+      - ${AIC_ROOT:-../../aic}/aic_engine/config:/ws_aic/install/share/aic_engine/config:ro
+      - ${AIC_RESULTS_ROOT:-${HOME}/aic_results}:/aic_results:rw
+    networks:
+      - aic_net
+    environment:
+      AIC_EVAL_PASSWD: CHANGE_IN_PROD
+      AIC_MODEL_PASSWD: CHANGE_IN_PROD
+
+  aic-policy:
+    container_name: aic_policy
+    image: aic-policy:latest
+    depends_on:
+      - eval
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      additional_contexts:
+        aic: ${AIC_ROOT:-../../aic}
+        aic_challenge: ${AIC_INDUSTRY_CHALLENGE_ROOT:-../../ai-industry-challenge}
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    networks:
+      - aic_net
+    environment:
+      AIC_ROUTER_ADDR: eval:7447
+      AIC_MODEL_PASSWD: CHANGE_IN_PROD
+      ZENOH_ROUTER_CHECK_ATTEMPTS: "-1"
+
+networks:
+  aic_net:
+    driver: bridge

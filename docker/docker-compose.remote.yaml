@@ -1,0 +1,18 @@
+# NVIDIA EC2 / remote GPU overlay (use with docker-compose.amdgpu.yaml).
+#
+#   docker compose -f docker/docker-compose.amdgpu.yaml -f docker/docker-compose.remote.yaml build
+#
+services:
+  eval:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
+      __EGL_VENDOR_LIBRARY_FILENAMES: /etc/glvnd/egl_vendor.d/10_nvidia.json
+    volumes:
+      - ./10_nvidia.json:/etc/glvnd/egl_vendor.d/10_nvidia.json:ro
+  aic-policy:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
