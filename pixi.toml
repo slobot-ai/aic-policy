@@ -18,8 +18,12 @@ pytest = "*"
 packaging = ">=24.2,<26"
 matplotlib = ">=3.10.9,<4"
 
+# CUDA 12.8 wheels (e.g. NVIDIA driver 570.x / ``nvidia-smi`` CUDA 12.8). Default PyPI ``torch`` resolves to CUDA 13.
+[pypi-options]
+extra-index-urls = ["https://download.pytorch.org/whl/cu128"]
+
 [pypi-dependencies]
-torch = ">=2.2.0"
+torch = "==2.11.0+cu128"
 
 [activation]
 scripts = ["pixi_env_setup.sh"]
