@@ -6,10 +6,13 @@
 
 from __future__ import annotations
 
+import math
+
 from aic_model.policy import GetObservationCallback, MoveRobotCallback, Policy, SendFeedbackCallback
 from aic_task_interfaces.msg import Task
 
 from aic_policy_ros.control import TaskBoardControl
+from aic_policy_ros.task_board_rectangle_estimation import rectangle_candidate_highest_mean_hard_iou
 from aic_policy_ros.task_board_vision import TaskBoardVision
 
 
@@ -66,4 +69,11 @@ class TaskBoardPolicy(Policy):
         else:
             self.get_logger().warning("TaskBoardPolicy: skipping second_action (no planar board pose)")
         task_board_vision.third_observation()
+        sc_rect = task_board_vision.last_sc_port_rectangle_estimation
+        if sc_rect is not None:
+            best, _idx = rectangle_candidate_highest_mean_hard_iou(sc_rect)
+            if math.isfinite(best.cx_m) and math.isfinite(best.cy_m):
+                task_board_control.third_action(port_cx_m=best.cx_m, port_cy_m=best.cy_m)
+                return True
+        self.get_logger().warning("TaskBoardPolicy: skipping third_action (no finite SC port rectangle fit)")
         return True

@@ -240,7 +240,7 @@ def test_third_observation_writes_bgr_and_md5_retry(
         )
         np.testing.assert_allclose(T_third, T_first_fixture, rtol=0.0, atol=1e-9)
 
-    assert (out_root / "episode_0" / "multiview" / "3" / "yaw_pi" / "rectangle_classifier_trajectory.png").is_file()
+    assert (out_root / "episode_0" / "multiview" / "3" / "yaw_pi" / "xy_top_view_visible_by_camera.png").is_file()
 
     node.destroy_node()
 

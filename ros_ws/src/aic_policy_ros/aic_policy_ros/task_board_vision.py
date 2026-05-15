@@ -94,7 +94,7 @@ def _task_summary_for_plot(task: Any) -> str:
 
 
 class TaskBoardVision:
-    """Runs first/second/third observation chains using ``RectangleVision`` from ``ai-industry-challenge``.
+    """Runs first/second/third observation chains with :class:`vision.rectangle_vision.RectangleVision`.
 
     ``policy`` must provide ``get_logger()`` and ``sleep_for(duration_sec)`` (e.g. :class:`TaskBoardPolicy`).
     """
@@ -136,6 +136,7 @@ class TaskBoardVision:
         self.last_planar_board_cx_m: float | None = None
         self.last_planar_board_cy_m: float | None = None
         self.last_planar_board_yaw_rad: float | None = None
+        self.last_sc_port_rectangle_estimation: TaskBoardRectangleEstimationOutput | None = None
 
     def _episode_tree_root(self) -> Path:
         """``output_root`` / ``episode_<id>`` (same basename as :class:`MultiviewSnapshot` dumps)."""
@@ -258,6 +259,7 @@ class TaskBoardVision:
         observation_dump_id: int | None = None,
         classifier_camera_indices: tuple[int, ...] | None = None,
         initializer_camera_indices: tuple[int, ...] | None = None,
+        classifier_native_crop_around_initializer: bool | None = None,
     ) -> tuple[TaskBoardRectangleEstimationOutput, tuple[Any, Any], Any]:
         from vision.rectangle_vision import RectangleVisionInput
 
@@ -291,23 +293,35 @@ class TaskBoardVision:
         candidates: list[TaskBoardRectangleCandidate] = []
         rv_outs: list[Any] = []
         inp_board_template: Any | None = None
+        from dataclasses import fields
+
+        allowed_rvi = {f.name for f in fields(RectangleVisionInput)}
         for i, yaw_seed in enumerate(_YAW_SEEDS_RAD):
-            inp = RectangleVisionInput(
-                bgr_u8_list=bgr_list,
-                segmentation_mode=segmentation_mode,
-                z_face_in_base=float(z_table),
-                T_cam_from_base=t_list,
-                image_scale=float(image_scale),
-                init_yaw_rad=float(yaw_seed),
-                rectangle_half_extent_x_m=rectangle_half_extent_x_m,
-                rectangle_half_extent_y_m=rectangle_half_extent_y_m,
-                dump_dir=dump_episode_root,
-                dump_layout=dump_layout,
-                dump_observation_id=dump_obs_id,
-                camera_names=cam_names,
-                classifier_camera_indices=classifier_camera_indices,
-                initializer_camera_indices=initializer_camera_indices,
-            )
+            base_kw: dict[str, Any] = {
+                "bgr_u8_list": bgr_list,
+                "segmentation_mode": segmentation_mode,
+                "z_face_in_base": float(z_table),
+                "T_cam_from_base": t_list,
+                "image_scale": float(image_scale),
+                "init_yaw_rad": float(yaw_seed),
+                "rectangle_half_extent_x_m": rectangle_half_extent_x_m,
+                "rectangle_half_extent_y_m": rectangle_half_extent_y_m,
+                "dump_dir": dump_episode_root,
+                "dump_layout": dump_layout,
+                "dump_observation_id": dump_obs_id,
+                "camera_names": cam_names,
+            }
+            if "classifier_camera_indices" in allowed_rvi:
+                base_kw["classifier_camera_indices"] = classifier_camera_indices
+            if "initializer_camera_indices" in allowed_rvi:
+                base_kw["initializer_camera_indices"] = initializer_camera_indices
+            if classifier_native_crop_around_initializer is not None and (
+                "classifier_native_crop_around_initializer" in allowed_rvi
+            ):
+                base_kw["classifier_native_crop_around_initializer"] = bool(
+                    classifier_native_crop_around_initializer
+                )
+            inp = RectangleVisionInput(**{k: base_kw[k] for k in base_kw if k in allowed_rvi})
             if i == 0:
                 inp_board_template = inp
             t0 = time.perf_counter()
@@ -391,7 +405,12 @@ class TaskBoardVision:
         self._dump_scaled_hsv_turbo_multiview(snap_out)
         z_table = z_face_in_base()
         self._logger.info(f"TaskBoardVision: center-estimation geometry z_table={z_table:.9f}")
+        from vision.rectangle3d_detector import TASK_BOARD_TOP_FACE_AABB
         from vision.rectangle_segmentation import SegmentationMode
+
+        x_min, y_min, x_max, y_max, _ = TASK_BOARD_TOP_FACE_AABB
+        hx_tb = 0.5 * (x_max - x_min)
+        hy_tb = 0.5 * (y_max - y_min)
 
         bql, bqc, bqr = _bgr_quarter_views(snap_out)
         mask_paths = MultiviewSnapshot.multiview_bgr_dump_paths(
@@ -409,6 +428,8 @@ class TaskBoardVision:
             image_scale=1.0,
             vision_subject="task_board",
             observation_dump_id=1,
+            rectangle_half_extent_x_m=hx_tb,
+            rectangle_half_extent_y_m=hy_tb,
         )
         self._board_rectangle_vision_input = inp_board
         self._board_rectangle_vision_outputs = board_rv_outs
@@ -650,7 +671,7 @@ class TaskBoardVision:
         return rectangle_logo
 
     def third_observation(self) -> None:
-        """Decode multiview BGR, HSV H preview, blue-port H segmentation, and ``RectangleVision`` (dump id 3).
+        """Decode multiview BGR, HSV H preview, blue-port masks, and ``RectangleVision`` (dump id 3).
 
         If any camera's full-res BGR still matches the second observation (MD5 of decoded
         ``sensor_msgs/Image`` bytes), yields once and retries ``get_observation()`` —
@@ -694,20 +715,22 @@ class TaskBoardVision:
         self._dump_scaled_hsv_h_turbo_multiview(snap_out)
         z_table = z_face_in_base()
         self._logger.info(f"TaskBoardVision: third observation z_face_in_base={z_table:.9f}")
-        from vision.rectangle3d_detector import sc_port_rectangle_half_extents_xy_m
+        from vision.rectangle3d_detector import SC_PORT_FOA_MESH_AABB
         from vision.rectangle_segmentation import SegmentationMode
 
         bql, bqc, bqr = _bgr_quarter_views(snap_out)
         mask_paths = MultiviewSnapshot.multiview_bgr_dump_paths(
             self._output_root, self._episode_id, "third_observation_blue_port_mask.png"
         )
-        hx_sc, hy_sc = sc_port_rectangle_half_extents_xy_m()
+        sx0, sy0, sx1, sy1, _, _ = SC_PORT_FOA_MESH_AABB
+        hx_sc = 0.5 * (sx1 - sx0)
+        hy_sc = 0.5 * (sy1 - sy0)
         self._logger.info(
             "TaskBoardVision: third observation blue SC port geometry "
-            f"RectangleVision z_face_in_base=z_face_in_base()={z_table:.9f} (task-board top; no SC mesh z stack) "
+            f"RectangleVision z_face_in_base=z_face_in_base()={z_table:.9f} "
             f"rectangle_half_extent_xy_m=({hx_sc:.9f}, {hy_sc:.9f})"
         )
-        self._fit_two_candidates(
+        sc_rect, _, _ = self._fit_two_candidates(
             bgr_left=bql,
             bgr_center=bqc,
             bgr_right=bqr,
@@ -723,4 +746,6 @@ class TaskBoardVision:
             observation_dump_id=3,
             initializer_camera_indices=(1,),
             classifier_camera_indices=(1,),
+            classifier_native_crop_around_initializer=True,
         )
+        self.last_sc_port_rectangle_estimation = sc_rect

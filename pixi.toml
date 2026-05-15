@@ -30,6 +30,6 @@ scripts = ["pixi_env_setup.sh"]
 
 [tasks]
 aic-policy-model = "bash scripts/run_aic_vision_model.sh"
-pytest = "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=ros_ws/src/aic_policy_ros:../aic/aic_model:../aic/.pixi/envs/default/lib/python3.12/site-packages python -m pytest -q ros_ws/src/aic_policy_ros/tests"
+pytest = "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=../ai-industry-challenge/src:ros_ws/src/aic_policy_ros:../aic/aic_model:../aic/.pixi/envs/default/lib/python3.12/site-packages python -m pytest -q ros_ws/src/aic_policy_ros/tests"
 colcon-build = "bash -eo pipefail -c 'cd ros_ws && colcon build'"
 colcon-build-vision = "bash -eo pipefail -c 'cd ros_ws && colcon build --packages-select aic_policy_ros'"

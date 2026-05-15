@@ -17,7 +17,12 @@ from aic_policy_ros.task_board_rectangle_estimation import TaskBoardRectangleEst
 
 from .cartesian_position_move import CartesianPositionMove
 from .link_transform import LinkTransform, LinkTransformInput
-from .task_board_center_move import TaskBoardCenterMoveOutput
+from .task_board_center_move import (
+    TaskBoardCenterMove,
+    TaskBoardCenterMoveInput,
+    TaskBoardCenterMoveOutput,
+    read_gripper_tcp_pose_base_link,
+)
 from .task_preset_middle_pose_transform import (
     TaskPresetMiddlePoseTransform,
     TaskPresetMiddlePoseTransformInput,
@@ -136,3 +141,29 @@ class TaskBoardControl:
                 episode_id=episode_id,
             )
         )
+
+    def third_action(self, *, port_cx_m: float, port_cy_m: float) -> TaskBoardCenterMoveOutput:
+        """Move TCP over the SC port centroid in ``xy`` at the current height; keep current planar yaw."""
+
+        buf = self._policy._parent_node._tf_buffer
+        _x, _y, az, _qx, _qy, _qz, _qw, ayaw = read_gripper_tcp_pose_base_link(buf)
+        mover = TaskBoardCenterMove()
+        out = mover.apply(
+            TaskBoardCenterMoveInput(
+                policy=self._policy,
+                move_robot=self._move_robot,
+                tf_buffer=buf,
+                target_cx_m=float(port_cx_m),
+                target_cy_m=float(port_cy_m),
+                target_yaw_rad=float(ayaw),
+                initialize_tcp_z_m=float(az),
+                sim_cycle_sec=self._cartesian._sim_cycle_sec,
+            )
+        )
+        self._cartesian._logger.info(
+            "TaskBoardControl.third_action: SC port merged centroid xy move "
+            f"target=({port_cx_m:.6f},{port_cy_m:.6f}) "
+            f"actual_xyz=({out.actual_tcp_x_m:.6f},{out.actual_tcp_y_m:.6f},{out.actual_tcp_z_m:.6f}) "
+            f"err_xyz=({out.dx_m:.6f},{out.dy_m:.6f},{out.dz_m:.6f})"
+        )
+        return out

@@ -113,6 +113,14 @@ def _gripper_tcp_pose_base_link(
     return (float(t.x), float(t.y), float(t.z), qx, qy, qz, qw, yaw)
 
 
+def read_gripper_tcp_pose_base_link(
+    tf_buffer: Any,
+) -> tuple[float, float, float, float, float, float, float, float]:
+    """TCP pose in ``base_link`` for ``gripper/tcp`` (same tuple as :func:`_gripper_tcp_pose_base_link`)."""
+
+    return _gripper_tcp_pose_base_link(tf_buffer)
+
+
 def _blend_pose_toward_target(
     cur_xyz: tuple[float, float, float],
     cur_quat_xyzw: tuple[float, float, float, float],
